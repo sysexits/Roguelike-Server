@@ -1,0 +1,36 @@
+{
+  "name": "roguelike-server",
+  "version": "0.0.1",
+  "description": "Backend of roguelike server",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sysexits/Roguelike-Server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sysexits/Roguelike-Server/issues"
+  },
+  "homepage": "https://github.com/sysexits/Roguelike-Server#readme",
+  "dependencies": {
+    "kerberos": "~0.0.17",
+    "express": "~4.13.3",
+    "passport": "~0.3.2",
+    "passport-local": "~1.0.0",
+    "bcrypt-nodejs": "latest",
+    "morgan": "~1.6.1",
+    "mongoose": "~4.3.4",
+    "body-parser": "~1.14.2",
+    "cookie-parser": "~1.4.0",
+    "method-override": "~2.3.5",
+    "express-session": "~1.12.1",
+    "stompjs": "~2.3.3",
+    "async": "~1.5.0"
+  }
+}
+
