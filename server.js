@@ -20,6 +20,8 @@ app.use(session({secret: '651de52f36ae3a7d02a6808928b8b756', resave: true, saveU
 app.use(passport.initialize());
 app.use(passport.session());
 
+require('./app/route.js')(app);
+
 var server = app.listen(port, function(err) {
   if(err) throw err;
   var host = server.address().address;
