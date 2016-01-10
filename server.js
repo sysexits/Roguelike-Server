@@ -9,6 +9,9 @@ var Stomp = require('stompjs');
 
 var app = express();
 var port = process.argv[2] || 8000;
+var database = require('./config/database.js');
+
+mongoose.connect(database.url);
 
 app.use(cookieParser());
 app.use(bodyParser.json());
