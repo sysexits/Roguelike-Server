@@ -1,4 +1,5 @@
 var Cell = require('../config/models/cell.js');
+var User = require('../config/models/user.js');
 
 var fillUpByEntrance = function(r, c, result, entrance) {
   if(entrance == 0 || entrance == 2) // west and east
@@ -55,6 +56,7 @@ var randomMapGenerator = function(r,c,e) {
   if(weaponRandom < 0.10) {
     weaponMax = 1;
   }
+  var playerMax = 1;
   var result = new Array(r);
   for(var y=0; y<r; y++) {
     result[y] = new Array(c);
@@ -74,6 +76,9 @@ var randomMapGenerator = function(r,c,e) {
           potionMax -= 1;
         } else if(blockRandom < 0.1) {
           result[y][x] = "b";
+        } else if(e == -1 && playerMax > 0 ) {
+          result[y][x] = "u";
+          playerMax -= 1;
         } else {
           result[y][x] = "f";
         }
@@ -100,6 +105,34 @@ var randomMapGenerator = function(r,c,e) {
 }
 
 module.exports = function(app) {
+  app.post('/login', function(req, res){
+    var data = req.body;
+    User.findOne({username: data.username}, function(err, user){
+      if(!user) {
+        // first visit
+        var str = randomMapGenerator(16,16,-1);
+        var newCell = new Cell();
+        newCell.hash = newCell.generateHash();
+        newCell.map = str;
+        newCell.row = 16;
+        newCell.column = 16;
+        newCell.save(function(err){
+          var newUser = new User();
+          newUser.username = data.username;
+          newUser.currentCell = {position: "0,0", hash:newCell.hash};
+          newUser.cells = {"0,0": newCell.hash};
+          newUser.save(function(err){
+            res.json({'status': 200, 'hash': newCell.hash, 'map': newCell.map, 'row': 16, 'column': 16});
+          });
+        });
+         
+      } else {
+        Cell.findOne({hash: user.currentCell.hash}, function(err, cell){
+          res.json({'status': 200, 'hash': cell.hash, 'map': cell.map, 'row': 16, 'column': 16});
+        });
+      }
+    });
+  });
   app.post('/randomMapGenerator', function(req,res) {
     var data = req.body;
     var entrance = -1; // 0 - West, 1 - South, 2 - East, 3 - North
@@ -126,38 +159,70 @@ module.exports = function(app) {
           newCell.row = 16;
           newCell.column = 16;
           Cell.findOne( {'hash': data.hash}, function(err, cell){
+            var dirX = 0; var dirY = 0;
             if(entrance == 0) {
               cell.W = newCell.hash;
               newCell.E = data.hash;
+              dirX = -1;
             } else if(entrance == 1) {
               cell.S = newCell.hash;
               newCell.N = data.hash;
+              dirY = 1;
             } else if(entrance == 2) {
               cell.E = newCell.hash;
               newCell.W = data.hash;
+              dirX = 1;
             } else if(entrance == 3) {
               cell.N = newCell.hash;
               newCell.S = data.hash;
+              dirY = -1;
             }
-            cell.save(function(err){
-              newCell.save(function(err){
-                res.json({'status': 200, 'hash': newCell.hash, 'map': str, 'row': 16, 'column': 16});
+            User.findOne({'username': data.username}, function(err,user){
+              var pos = user.currentCell.position;
+              var s = pos.split(",");
+              var newPos = (parseInt(s[0]) + dirX).toString() + "," + (parseInt(s[1]) + dirY).toString();
+              user.currentCell.position = newPos;
+              user.currentCell.hash = newCell.hash;
+              user.cells[newPos] = newCell.hash;
+              user.markModified('cells');
+              cell.save(function(err){
+                newCell.save(function(err){
+                  user.save(function(err){
+                    res.json({'status': 200, 'hash': newCell.hash, 'map': str, 'row': 16, 'column': 16});
+                  });
+                });
               });
             });
           });
         } else {
           var newQuery = {};
+          var dirX = 0; var dirY = 0;
           if(entrance == 0) {
             newQuery.hash = cell.W;
+            dirX = -1;
           } else if(entrance == 1) {
             newQuery.hash = cell.S;
+            dirY = 1;
           } else if(entrance == 2) {
             newQuery.hash = cell.E;
+            dirX = 1;
           } else if(entrance == 3) {
             newQuery.hash = cell.N;
+            dirY = -1;
           }
           Cell.findOne(newQuery, function(err, newCell){
-            res.json({'status': 200, hash: newCell.hash, map: newCell.map, row: newCell.row, column: newCell.column})
+            User.findOne({'username': data.username}, function(err, user){
+              var pos = user.currentCell.position;
+              var s = pos.split(",");
+              var newPos = (parseInt(s[0]) + dirX).toString() + "," + (parseInt(s[1]) + dirY).toString();
+              user.currentCell.position = newPos;
+              user.currentCell.hash = newCell.hash;
+              user.cells[newPos] = newCell.hash;
+              user.markModified('cells');
+              user.save(function(err){
+                res.json({'status': 200, hash: newCell.hash, map: newCell.map, row: newCell.row, column: newCell.column})
+              });    
+            });
           });
         }
       });
