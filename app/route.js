@@ -48,11 +48,11 @@ var randomMapGenerator = function(r,c,e) {
   var potionRandom = Math.random();
   var potionMax = 0;
   if(potionRandom < 0.25) {
-    potionMax = 0
-  } else if(potionRandom < 0.5) {
     potionMax = 1 
+  } else if(potionRandom < 0.5) {
+    potionMax = 0
   }
-  for(var i=0; i<potionMax; i++) {
+  for(var i=0; i<=potionMax; i++) {
     var valueRandom = Math.random();
     if(valueRandom < 0.1) {
       output[i.toString()] = {value: 100, items:1};
@@ -80,6 +80,7 @@ var randomMapGenerator = function(r,c,e) {
     }
   }
   var playerMax = 1;
+  var potionIter = 0;
   var result = new Array(r);
   for(var y=0; y<r; y++) {
     result[y] = new Array(c);
@@ -94,9 +95,13 @@ var randomMapGenerator = function(r,c,e) {
         if(blockRandom < 0.1 && weaponMax > 0) {
           result[y][x] = "2";
           weaponMax -= 1;
-        } else if(blockRandom < 0.1 && potionMax >= 0) {
-          result[y][x] = potionMax.toString();
-          potionMax -= 1;
+        } else if(blockRandom < 0.1 && potionIter <= potionMax) {
+          if(potionIter == 0) {
+            result[y][x] = "0";
+          } else {
+            result[y][x] = "1"; 
+          }
+          potionIter += 1;
         } else if(blockRandom < 0.1) {
           result[y][x] = "b";
         } else if(e == -1 && playerMax > 0 ) {
@@ -148,28 +153,33 @@ module.exports = function(app) {
         resJson["hash"] = newCell.hash;
         resJson["row"] = 16;
         resJson["column"] = 16;
-        for(var i=0; i<2; i++) {
-          if(i.toString() in output) {
-            if(i == 0) {
-              newCell.potion1.value = output[i].value;
-              newCell.potion1.items = output[i].items;
-              resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
-            } else if(i == 1) {
-              newCell.potion2.value = output[i].value;
-              newCell.potion2.items = output[i].items;
-              resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
-            } else if(i == 2) {
-              newCell.weapon.value = output[i].value;
-              newCell.weapon.items = output[i].items;
-              resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
-            }
-          }
+        if(output["0"]) {
+          newCell.potion1.value = output["0"].value;
+          newCell.potion1.items = output["0"].items;
+
+          resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
+        }
+        if(output["1"]) {
+          newCell.potion2.value = output["1"].value;
+          newCell.potion2.items = output["1"].items;
+
+          resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
+        }
+        if(output["2"]) {
+          newCell.weapon.value = output["2"].value;
+          newCell.weapon.items = output["2"].items;
+
+          resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
         }
         newCell.save(function(err){
           var newUser = new User();
           newUser.username = data.username;
+          newUser.hp = 100;
+          newUser.ap = 5;
           newUser.currentCell = {position: "0,0", hash:newCell.hash};
           newUser.cells = {"0,0": newCell.hash};
+          resJson["hp"] = newUser.hp;
+          resJson["ap"] = newUser.ap;
           newUser.save(function(err){
             res.json(resJson);
           });
@@ -191,6 +201,8 @@ module.exports = function(app) {
           if(cell.weapon.value) {
             resJson["2"] = {"value": cell.weapon.value, "items": cell.weapon.items};
           }
+          resJson['hp'] = user.hp;
+          resJson['ap'] = user.ap;
           res.json(resJson);
         });
       }
@@ -228,23 +240,25 @@ module.exports = function(app) {
           resJson["hash"] = newCell.hash;
           resJson["row"] = 16;
           resJson["column"] = 16;
-          for(var i=0; i<2; i++) {
-            if(i.toString() in output) {
-              if(i == 0) {
-                newCell.potion1.value = output[i].value;
-                newCell.potion1.items = output[i].items;
-                resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
-              } else if(i == 1) {
-                newCell.potion2.value = output[i].value;
-                newCell.potion2.items = output[i].items;
-                resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
-              } else if(i == 2) {
-                newCell.weapon.value = output[i].value;
-                newCell.weapon.items = output[i].items;
-                resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
-              }
-            }
+          if(output["0"]) {
+            newCell.potion1.value = output["0"].value;
+            newCell.potion1.items = output["0"].items;
+
+            resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
           }
+          if(output["1"]) {
+            newCell.potion2.value = output["1"].value;
+            newCell.potion2.items = output["1"].items;
+
+            resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
+          }
+          if(output["2"]) {
+            newCell.weapon.value = output["2"].value;
+            newCell.weapon.items = output["2"].items;
+
+            resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
+          }
+
           Cell.findOne( {'hash': data.hash}, function(err, cell){
             var dirX = 0; var dirY = 0;
             if(entrance == 0) {
@@ -341,22 +355,23 @@ module.exports = function(app) {
       resJson["hash"] = newCell.hash;
       resJson["row"] = 16;
       resJson["column"] = 16;
-      for(var i=0; i<2; i++) {
-        if(i.toString() in output) {
-          if(i == 0) {
-            newCell.potion1.value = output[i].value;
-            newCell.potion1.items = output[i].items;
-            resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
-          } else if(i == 1) {
-            newCell.potion2.value = output[i].value;
-            newCell.potion2.items = output[i].items;
-            resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
-          } else if(i == 2) {
-            newCell.weapon.value = output[i].value;
-            newCell.weapon.items = output[i].items;
-            resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
-          }
-        }
+      if(output["0"]) {
+        newCell.potion1.value = output["0"].value;
+        newCell.potion1.items = output["0"].items;
+
+        resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
+      }
+      if(output["1"]) {
+        newCell.potion2.value = output["1"].value;
+        newCell.potion2.items = output["1"].items;
+
+        resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
+      }
+      if(output["2"]) {
+        newCell.weapon.value = output["2"].value;
+        newCell.weapon.items = output["2"].items;
+
+        resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
       }
 
       newCell.save(function(err){
