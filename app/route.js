@@ -1,6 +1,17 @@
 var Cell = require('../config/models/cell.js');
 var User = require('../config/models/user.js');
 
+Array.prototype.remove = function() {
+      var what, a = arguments, L = a.length, ax;
+      while (L && this.length) {
+          what = a[--L];
+          while ((ax = this.indexOf(what)) !== -1) {
+              this.splice(ax, 1);                        
+          }   
+      }
+      return this;
+};
+
 var fillUpByEntrance = function(r, c, result, entrance) {
   if(entrance == 0 || entrance == 2) // west and east
   {
@@ -64,7 +75,7 @@ var randomMapGenerator = function(r,c,e) {
   }
   var weaponRandom = Math.random();
   var weaponMax = 0;
-  if(weaponRandom < 0.10) {
+  if(weaponRandom < 1) {
     weaponMax = 1;
   }
   for(var i=0; i<weaponMax; i++) {
@@ -73,7 +84,7 @@ var randomMapGenerator = function(r,c,e) {
       output["2"] = {value: 1000, items:1};
     } else if(valueRandom < 0.1) {
       output["2"] = {value: 50, items:1};
-    } else if(valueRandom < 0.5) {
+    } else if(valueRandom < 0.8) {
       output["2"] = {value: 10, items:1};
     } else {
       output["2"] = {value: 5, items:1};
@@ -149,10 +160,14 @@ module.exports = function(app) {
         newCell.markModified("mapOriginal");
         newCell.row = 16;
         newCell.column = 16;
+        newCell.ips.push(data.ip);
+        newCell.moves = JSON.stringify({});
         resJson["map"] = newCell.map;
         resJson["hash"] = newCell.hash;
         resJson["row"] = 16;
         resJson["column"] = 16;
+        resJson["ips"] = newCell.ips;
+        resJson["moves"] = newCell.moves;
         if(output["0"]) {
           newCell.potion1.value = output["0"].value;
           newCell.potion1.items = output["0"].items;
@@ -203,7 +218,12 @@ module.exports = function(app) {
           }
           resJson['hp'] = user.hp;
           resJson['ap'] = user.ap;
-          res.json(resJson);
+          cell.ips.push(data.ip);
+          resJson["ips"] = cell.ips;
+          resJson["moves"] = cell.moves;
+          cell.save(function(err){
+            res.json(resJson);     
+          });
         });
       }
     });
@@ -236,6 +256,7 @@ module.exports = function(app) {
           newCell.markModified("mapOriginal");
           newCell.row = 16;
           newCell.column = 16;
+          newCell.moves = JSON.stringify({});
           resJson["map"] = newCell.map;
           resJson["hash"] = newCell.hash;
           resJson["row"] = 16;
@@ -243,19 +264,16 @@ module.exports = function(app) {
           if(output["0"]) {
             newCell.potion1.value = output["0"].value;
             newCell.potion1.items = output["0"].items;
-
             resJson["0"] = {"value": newCell.potion1.value, "items": newCell.potion1.items};
           }
           if(output["1"]) {
             newCell.potion2.value = output["1"].value;
             newCell.potion2.items = output["1"].items;
-
             resJson["1"] = {"value": newCell.potion2.value, "items": newCell.potion2.items};
           }
           if(output["2"]) {
             newCell.weapon.value = output["2"].value;
             newCell.weapon.items = output["2"].items;
-
             resJson["2"] = {"value": newCell.weapon.value, "items": newCell.weapon.items};
           }
 
@@ -278,6 +296,9 @@ module.exports = function(app) {
               newCell.S = data.hash;
               dirY = -1;
             }
+            cell.ips.remove(data.ip);
+            newCell.ips.push(data.ip);
+            resJson["ips"] = newCell.ips;
             User.findOne({'username': data.username}, function(err,user){
               var pos = user.currentCell.position;
               var s = pos.split(",");
@@ -334,9 +355,19 @@ module.exports = function(app) {
               user.currentCell.hash = newCell.hash;
               user.cells[newPos] = newCell.hash;
               user.markModified('cells');
-              user.save(function(err){
-                res.json(resJson);
-              });    
+              console.log(data);
+              Cell.findOne({hash: data.hash}, function(err, cell){
+                cell.ips.remove(data.ip);
+                newCell.ips.push(data.ip);
+                resJson["ips"] = newCell.ips;
+                cell.save(function(err){
+                  newCell.save(function(err){
+                    user.save(function(err){
+                      res.json(resJson);
+                    });
+                  });
+                });
+              });
             });
           });
         }
@@ -351,10 +382,13 @@ module.exports = function(app) {
       newCell.markModified("mapOriginal");
       newCell.row = 16;
       newCell.column = 16;
+      newCell.ips.push(data.ip);
+      newCell.moves = {};
       resJson["map"] = newCell.map;
       resJson["hash"] = newCell.hash;
       resJson["row"] = 16;
       resJson["column"] = 16;
+      resJson["ips"] = newCell.ips;
       if(output["0"]) {
         newCell.potion1.value = output["0"].value;
         newCell.potion1.items = output["0"].items;
@@ -378,5 +412,30 @@ module.exports = function(app) {
         res.json(resJson);
       });
     }
+  });
+  app.post("/connectRooms", function(req, res){
+    var data = req.body;
+    Cell.findOne({hash: data.hash}, function(err, cell) {
+      Cell.findOne({hash: data.hashTarget}, function(err,cellTarget) {
+          if(data.entrance == 0) {
+              cell.W = data.hashTarget;
+              cellTarget.E = data.hash;
+            } else if(data.entrance == 1) {
+              cell.S = data.hashTarget;
+              cellTarget.N = data.hash;
+            } else if(data.entrance == 2) {
+              cell.E = data.hashTarget;
+              cellTarget.W = data.hash;
+            } else if(data.entrance == 3) {
+              cell.N = data.hashTarget;
+              cellTarget.S = data.hash;
+            }
+          cell.save(function(err){
+            cellTarget.save(function(err){
+              res.json({"status": 200});
+            });
+          })
+        });
+      });
   });
 }

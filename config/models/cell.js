@@ -14,7 +14,9 @@ var cellSchema = new Schema({
   E: String,
   potion1: {value: Number, items: Number},
   potion2: {value: Number, items: Number},
-  weapon: {value: Number, items: Number}
+  weapon: {value: Number, items: Number},
+  ips: [String],
+  moves: String
 }, {collection: 'cell_test'});
 
 cellSchema.methods.generateHash = function() {

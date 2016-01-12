@@ -1,11 +1,12 @@
-var port = 41234;
-var host = '143.248.139.70';
+var port = 12345;
+var host = '143.248.232.40';
 
 var dgram = require('dgram');
 var data = {};
-data.hash = "$2a$08$wvb5fEi/sOO.5bG5HAPWjO4K4H.34JW2qhjTa2rqwaTsSOKma.ZI2";
-data.action = "consume";
-data.consume = "1";
+data.action = "myinfo";
+data.username = "test";
+data.xpos = "1";
+data.ypos = "2"
 var message = new Buffer(JSON.stringify(data));
 
 var client = dgram.createSocket('udp4');
